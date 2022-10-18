@@ -1,39 +1,37 @@
 import psycopg2
 from psycopg2 import Error
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 
-def get_connect_bd():  # Подключение к существующей базе данных
+def get_connect_bd():
+    """Connect to DB"""
     try:
-        connection = psycopg2.connect(user="postgres",  # параметры подключения
+        connection = psycopg2.connect(user="postgres",
                                       password="Swaq32123",
                                       host="127.0.0.1",
                                       port="5432",
                                       database="my_bd_animals")
-        # connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)  # автокоммит изменений отключил чтоб можно не записывать
+
     except (Exception, Error) as error:
-        print("Ошибка при работе с PostgreSQL", error)
+        print("PostgreSQL incorrect working", error)
         return None
     finally:
-        print("Успешное подключие к бд")
-        print("-" * 30)
+        print("Successful connection to DB")
     return connection
 
 
-def disconntct_bd(connection, cursor) -> None:
+def disconntct_bd(connection, cursor):
     cursor.close()
     connection.close()
-    print("Соединение с PostgreSQL закрыто")
+    print("Connection with PostgreSQL closed")
 
 
-def execute_req(cursor, req_text: str, is_print: bool = False) -> tuple:
+def execute_req(cursor, req_text: str, is_print: bool = False):
     result = ""
     try:
-        cursor.execute(req_text)  # выполнение запроса
+        cursor.execute(req_text)  # выполнение запроса.
 
         result = cursor.fetchall()
     except:
-        # print("не удалось вывести запрос")
         result = ""
     finally:
         if is_print:
@@ -42,8 +40,8 @@ def execute_req(cursor, req_text: str, is_print: bool = False) -> tuple:
         return result, cursor.statusmessage
 
 
-def get_req_create_main_table(table_name: str) -> str:
-    """ создадим главную таблицу с данными с доп. полями"""
+def get_req_create_main_table(table_name: str):
+    """Create main table with dates"""
     req = f"""
                 create table {table_name}
             (
@@ -75,7 +73,7 @@ def get_req_create_main_table(table_name: str) -> str:
     return req
 
 
-def get_req_create_animals_table(table_name: str) -> str:
+def get_req_create_animals_table(table_name: str):
     req = f"""
                 create table {table_name}
             (
@@ -93,8 +91,8 @@ def get_req_create_animals_table(table_name: str) -> str:
     return req
 
 
-def get_req_insert(table_name: str, list_title: str, list_rows: list[str]) -> str:
-    list_rows_to_text = ",".join(list_rows)  # сформируем данные в виде строки (),(),(),...
+def get_req_insert(table_name: str, list_title: str, list_rows: list[str]):
+    list_rows_to_text = ",".join(list_rows)  # формируем данные в виде строки (),(),(),...
 
     req = f"""
                 INSERT INTO {table_name}{list_title}
@@ -104,8 +102,8 @@ def get_req_insert(table_name: str, list_title: str, list_rows: list[str]) -> st
 
 
 def get_create_dict(cursor, main_table_name: str, column_name: list[str], new_table_name: str) -> bool:
-    """ создание базовой(мелкой) таблицы и заполнение уникальными записями из основной
-        column_name - список выбранных столбцов
+    """creating a basic (small) table and filling with unique records from the main one
+        column_name - list of selected columns
     """
     req_1 = f"""
                 create table {new_table_name}
@@ -118,13 +116,13 @@ def get_create_dict(cursor, main_table_name: str, column_name: list[str], new_ta
     if status:
         print(status, new_table_name)
 
-        if status:  # заполняем, только после создания
+        if status:  # заполняем только после создания:
             req_2 = f"""
                         INSERT INTO {new_table_name}(name)     
                         SELECT {column_name[0]} from {main_table_name}
                         GROUP BY {column_name[0]}           
                         """
-            if len(column_name) > 1:  # если больше одного слолбца для выборки уникальных
+            if len(column_name) > 1:  # выбираем уникальный, если больше одного столбца.
                 for each_column in column_name[1:]:
                     req_2 += f"""
                     UNION
@@ -139,8 +137,8 @@ def get_create_dict(cursor, main_table_name: str, column_name: list[str], new_ta
     return True
 
 
-def get_update_in_base_table(cursor, main_table_name: str, column_name: list[str], base_table_name: str) -> None:
-    """ заполняем значения основной таблицы индексами базовой таблицы """
+def get_update_in_base_table(cursor, main_table_name: str, column_name: list[str], base_table_name: str):
+    """populate the values of the main table with the indexes of the base table"""
     for each_column_name in column_name:
         req_2 = f"""
                     UPDATE {main_table_name}
@@ -156,12 +154,12 @@ def get_update_in_base_table(cursor, main_table_name: str, column_name: list[str
             print(status, column_name)
 
 
-def create_table_connections(cursor, main_table_name: str, new_table_name: str) -> bool:
-    result, status = execute_req(cursor, get_req_create_animals_table(new_table_name))  # создание связующей таблицы
+def create_table_connections(cursor, main_table_name: str, new_table_name: str):
+    result, status = execute_req(cursor, get_req_create_animals_table(new_table_name))  # создаём связующую таблицу.
     columns = "animal_id,id_animal_type,name,id_breed,id_color1,id_color2,date_of_birth"
     if status:
         print(status, new_table_name)
-        # скопируем информацию из общей таблицы
+        # копируем информацию из общей таблицы:
         req_2 = f"""
                     INSERT INTO {new_table_name}({columns})     
                     SELECT {columns} FROM {main_table_name}
@@ -170,13 +168,13 @@ def create_table_connections(cursor, main_table_name: str, new_table_name: str) 
         result, status = execute_req(cursor, req_2)
         if status:
             print(status, new_table_name)
-            # создадим связи с новой таблицей
+            # создаём связи с новой таблицей:
             column_name = columns.split(",")
             condition_list = []
             for each_column_name in column_name:
                 condition_list.append(f"OtherTable.{each_column_name} = {main_table_name}.{each_column_name}")
-            condition = "\n and ".join(condition_list)  # соберем условие из соответсвия нужных полей
-            # заполним идешками животного главную таблицу по полному соответсвию полей
+            condition = "\n and ".join(condition_list)  # соберем условие из соответсвия нужных полей.
+            # заполняем id питомца главную таблицу по полному соответсвию полей.
             req_2 = f"""
                         UPDATE {main_table_name}
                         SET id_animal = OtherTable.id  
@@ -189,11 +187,11 @@ def create_table_connections(cursor, main_table_name: str, new_table_name: str) 
             result, status = execute_req(cursor, req_2)
             if status:
                 print(status, main_table_name)
-                # добавим в список лишних
+                # добавляем в список лишних:
                 list_id = ["animal_type", "breed", "color1", "color2", "outcome_subtype", "outcome_type"]
                 column_name.extend(list_id)
 
-                # удалим лишние столбцы из главной
+                # удаляем лишние столбцы из главной таблицы:
                 for each_column_name in column_name:
                     req_2 = f"""
                                 ALTER TABLE {main_table_name} DROP COLUMN {each_column_name};
@@ -211,7 +209,7 @@ def create_table_connections(cursor, main_table_name: str, new_table_name: str) 
 
 
 def get_req_append_fk(main_table: str, column: str, small_table: str) -> str:
-    """ добавление ключей """
+    """adding keys"""
     req = f"""
     ALTER TABLE IF EXISTS {main_table}
     ADD CONSTRAINT fk_{column} FOREIGN KEY (id_{column})
