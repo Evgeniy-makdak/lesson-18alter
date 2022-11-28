@@ -59,6 +59,7 @@ class UserCreateModelSerializer(serializers.ModelSerializer):
         return super().is_valid(raise_exception=raise_exception)
 
     def create(self, validated_data):
+        validated_data.pop("locations")
         new_obj = User.objects.create(**validated_data)
         for loc in self._locs:
             location, _ = Location.objects.get_or_create(name=loc)
